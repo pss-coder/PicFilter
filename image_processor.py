@@ -21,18 +21,15 @@ def heavy_processing(image):
 # similar to 
 def process_image(image_path, light=False, heavy=False) -> Path: 
     image = Image.open(image_path)
-    str = ""
 
     # Apple processing based on flags
     if light:
         image = light_processing(image=image)
-        str += "_light"
     if heavy:
         image = heavy_processing(image=image)
-        str += "_heavy"
     
     # save process path with modifled file name
-    processed_path = image_path.with_stem(image_path.stem + "_processed" + str)
+    processed_path = image_path.with_stem(image_path.stem + "_processed")
     image.save(processed_path)
 
     # Return path for tracking or DB logging
