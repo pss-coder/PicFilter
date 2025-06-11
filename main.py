@@ -1,23 +1,24 @@
-from image_processor import process_image
-
-from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-
 import os
-import uuid
 from pathlib import Path
+import uuid
+import json
+from datetime import datetime
 import shutil
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from image_processor import process_image
 
-app = FastAPI(title="Image Processor Web App", description="A web application for image processing")
+app = FastAPI(title="Image Processor", description="A web application for image processing")
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 PROCESSED_FOLDER = 'processed'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp'}
-MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10MB max file size
+MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 16MB max file size
 
 # Create directories if they don't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -27,6 +28,43 @@ os.makedirs('templates', exist_ok=True)
 # Templates setup
 templates = Jinja2Templates(directory="templates")
 
+# Simple database to track processed images (in production, use a real database)
+PROCESSED_IMAGES_DB = 'processed_images.json'
+
+def load_db():
+    if os.path.exists(PROCESSED_IMAGES_DB):
+        with open(PROCESSED_IMAGES_DB, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_db(db):
+    with open(PROCESSED_IMAGES_DB, 'w') as f:
+        json.dump(db, f, indent=2)
+
+def allowed_file(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def process_image_with_custom_path(image_path: Path, light: bool = False, heavy: bool = False) -> Path:
+    """Wrapper function to process image and save to custom location"""
+    # Generate unique filename for processed image
+    unique_id = str(uuid.uuid4())[:8]
+    suffix = []
+    if light:
+        suffix.append("light")
+    if heavy:
+        suffix.append("heavy")
+    
+    suffix_str = "_".join(suffix) if suffix else "original"
+    processed_filename = f"{image_path.stem}_{suffix_str}_{unique_id}{image_path.suffix}"
+    processed_path = Path(PROCESSED_FOLDER) / processed_filename
+    
+    # Use the original process_image function from processing module
+    temp_processed = process_image(image_path, light=light, heavy=heavy)
+    
+    # Move the processed file to our custom location
+    os.rename(temp_processed, processed_path)
+    
+    return processed_path
 
 # Thread pool for CPU-intensive image processing
 executor = ThreadPoolExecutor(max_workers=4)
@@ -34,8 +72,6 @@ executor = ThreadPoolExecutor(max_workers=4)
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
-
-
 
 @app.post("/upload")
 async def upload_file(
@@ -89,7 +125,16 @@ async def upload_file(
             heavy
         )
         
-       #TODO: Save to DB
+        # Save to database
+        db = load_db()
+        process_id = str(uuid.uuid4())
+        db[process_id] = {
+            'original_filename': file.filename,
+            'processed_path': str(processed_path),
+            'processing_options': {'light': light, 'heavy': heavy},
+            'timestamp': datetime.now().isoformat()
+        }
+        save_db(db)
         
         # Clean up original file
         if os.path.exists(file_path):
@@ -97,6 +142,7 @@ async def upload_file(
         
         return {
             'success': True,
+            'process_id': process_id,
             'message': 'Image processed successfully!'
         }
         
@@ -106,37 +152,53 @@ async def upload_file(
             os.remove(file_path)
         raise HTTPException(status_code=500, detail=f'Processing failed: {str(e)}')
 
+@app.get("/image/{process_id}")
+async def get_processed_image(process_id: str):
+    db = load_db()
+    if process_id not in db:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    processed_path = db[process_id]['processed_path']
+    if not os.path.exists(processed_path):
+        raise HTTPException(status_code=404, detail="Processed image file not found")
+    
+    return FileResponse(processed_path)
+
+@app.get("/download/{process_id}")
+async def download_image(process_id: str):
+    db = load_db()
+    if process_id not in db:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    processed_path = db[process_id]['processed_path']
+    if not os.path.exists(processed_path):
+        raise HTTPException(status_code=404, detail="Processed image file not found")
+    
+    original_filename = db[process_id]['original_filename']
+    download_filename = f"processed_{original_filename}"
+    
+    return FileResponse(
+        processed_path, 
+        filename=download_filename,
+        media_type='application/octet-stream'
+    )
+
+@app.get("/status/{process_id}")
+async def get_status(process_id: str):
+    db = load_db()
+    if process_id not in db:
+        raise HTTPException(status_code=404, detail="Process not found")
+    
+    return {
+        'process_id': process_id,
+        'status': 'completed',
+        'data': db[process_id]
+    }
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "message": "Image Processor API is running"}
 
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
-
-# Helper
-def allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def process_image_with_custom_path(image_path: Path, light: bool = False, heavy: bool = False) -> Path:
-    """Wrapper function to process image and save to custom location"""
-    # Generate unique filename for processed image
-    unique_id = str(uuid.uuid4())[:8]
-    suffix = []
-    if light:
-        suffix.append("light")
-    if heavy:
-        suffix.append("heavy")
-    
-    suffix_str = "_".join(suffix) if suffix else "original"
-    processed_filename = f"{image_path.stem}_{suffix_str}_{unique_id}{image_path.suffix}"
-    processed_path = Path(PROCESSED_FOLDER) / processed_filename
-    
-    # Use the original process_image function from processing module
-    temp_processed = process_image(image_path, light=light, heavy=heavy)
-    
-    # Move the processed file to our custom location
-    os.rename(temp_processed, processed_path)
-    
-    return processed_path
