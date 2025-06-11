@@ -352,7 +352,219 @@
     </div>
 
     <script>
-        // TODO: own implementation
+        let currentProcessId = null;
+        let isFileDialogOpen = false;
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const browseBtn = document.getElementById('browseBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const imagePreview = document.getElementById('imagePreview');
+        const processBtn = document.getElementById('processBtn');
+        const lightOption = document.getElementById('lightOption');
+        const heavyOption = document.getElementById('heavyOption');
+        const lightCheckbox = document.getElementById('light');
+        const heavyCheckbox = document.getElementById('heavy');
+
+        // File upload handling
+        uploadArea.addEventListener('click', handleUploadAreaClick);
+        browseBtn.addEventListener('click', handleBrowseClick);
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Checkbox handling
+        lightCheckbox.addEventListener('change', updateOptionStyles);
+        heavyCheckbox.addEventListener('change', updateOptionStyles);
+
+        function handleUploadAreaClick(e) {
+            // Only trigger file dialog if clicking on the upload area itself, not the button
+            if (e.target === uploadArea || e.target.classList.contains('upload-icon') || 
+                e.target.classList.contains('upload-text') || e.target.tagName === 'STRONG') {
+                triggerFileDialog();
+            }
+        }
+
+        function handleBrowseClick(e) {
+            e.stopPropagation(); // Prevent event bubbling
+            triggerFileDialog();
+        }
+
+        function triggerFileDialog() {
+            if (!isFileDialogOpen) {
+                isFileDialogOpen = true;
+                fileInput.click();
+                // Reset flag after a short delay to prevent multiple dialogs
+                setTimeout(() => {
+                    isFileDialogOpen = false;
+                }, 500);
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileObject(files[0]);
+            }
+        }
+
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (!file) return;
+            handleFileObject(file);
+        }
+
+        function handleFileObject(file) {
+            showFileInfo(file);
+            showImagePreview(file);
+            updateProcessButton();
+            uploadArea.classList.add('has-file');
+        }
+
+        function showFileInfo(file) {
+            const sizeKB = (file.size / 1024).toFixed(2);
+            const filePath = event.target.files[0]; // 0 = get the first file
+            const fileInfoText = `
+                <div style="margin-bottom: 15px;">
+                    <strong>Selected:</strong> ${file.name}<br>
+                    <strong>Size:</strong> ${sizeKB} KB<br>
+                    <strong>Type:</strong> ${file.type}
+                </div>
+            `;
+            fileInfo.innerHTML = fileInfoText;
+            fileInfo.style.display = 'block';
+        }
+
+        function showImagePreview(file) {
+            console.log("showing image")
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                console.log(e.target.result)
+                imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview" style="max-width: 300px;">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateOptionStyles() {
+            lightOption.classList.toggle('selected', lightCheckbox.checked);
+            heavyOption.classList.toggle('selected', heavyCheckbox.checked);
+            updateProcessButton();
+        }
+
+        function updateProcessButton() {
+            const hasFile = fileInput.files.length > 0;
+            const hasOption = lightCheckbox.checked || heavyCheckbox.checked;
+            processBtn.disabled = !(hasFile && hasOption);
+            
+            // Debug log to help troubleshoot
+            console.log('UpdateProcessButton:', {
+                hasFile,
+                hasOption,
+                lightChecked: lightCheckbox.checked,
+                heavyChecked: heavyCheckbox.checked,
+                disabled: processBtn.disabled
+            });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Form submission
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('light', lightCheckbox.checked ? 'true' : 'false');
+            formData.append('heavy', heavyCheckbox.checked ? 'true' : 'false');
+
+            // Show processing state
+            document.getElementById('processingInfo').style.display = 'block';
+            processBtn.disabled = true;
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    currentProcessId = data.process_id;
+                    showProcessedImage();
+                    showSuccess(data.message);
+                } else {
+                    showError(data.detail || data.error || 'Processing failed');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('processingInfo').style.display = 'none';
+                processBtn.disabled = false;
+            }
+        });
+
+        function showProcessedImage() {
+            const processedImg = document.getElementById('processedImage');
+            processedImg.src = `/image/${currentProcessId}`;
+            
+            document.getElementById('uploadForm').style.display = 'none';
+            document.getElementById('result').style.display = 'block';
+        }
+
+        function downloadImage() {
+            if (currentProcessId) {
+                window.open(`/download/${currentProcessId}`, '_blank');
+            }
+        }
+
+        function processAnother() {
+            // Reset form
+            document.getElementById('uploadForm').reset();
+            fileInfo.style.display = 'none';
+            imagePreview.innerHTML = '';
+            lightOption.classList.remove('selected');
+            heavyOption.classList.remove('selected');
+            uploadArea.classList.remove('has-file');
+            processBtn.disabled = true;
+            currentProcessId = null;
+            
+            // Show form, hide result
+            document.getElementById('uploadForm').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+        }
+
+        // Initialize
+        updateProcessButton();
     </script>
 </body>
 </html>
