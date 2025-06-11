@@ -17,13 +17,38 @@ def heavy_processing(image):
     return image
 
 
+# function that opens, applies selected processing, and saves new file
+# similar to 
+def process_image(image_path, light=False, heavy=False) -> Path: 
+    image = Image.open(image_path)
+    str = ""
+
+    # Apple processing based on flags
+    if light:
+        image = light_processing(image=image)
+        str += "_light"
+    if heavy:
+        image = heavy_processing(image=image)
+        str += "_heavy"
+    
+    # save process path with modifled file name
+    processed_path = image_path.with_stem(image_path.stem + "_processed" + str)
+    image.save(processed_path)
+
+    # Return path for tracking or DB logging
+    return processed_path  
+
+
 def main(image_path, light=False, heavy=False):
     image = Image.open(image_path)
     if light:
         image = light_processing(image)
     if heavy:
         image = heavy_processing(image)
+
     image.save(image_path.with_stem(image_path.stem + "_Processed"))
+
+    
 
 
 if __name__ == "__main__":
