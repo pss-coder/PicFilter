@@ -2,12 +2,108 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Processing</title>
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+        }
+        img {
+            margin: 0.5rem 0;
+            border: 1px solid #ccc;
+        }
+        li {
+            margin-bottom: 1.5rem;
+        }
+    </style>
 </head>
 <body>
-    <h2>Dashboard</h2>
-<p>You are logged in!</p>
-<a href="/logout">Sign out</a>
+
+<h2>Dashboard</h2>
+<p>Welcome, {{ email }}</p>
+
+<hr>
+
+<h3>Upload New Images</h3>
+<form method="post" action="/upload" enctype="multipart/form-data">
+    <label>Select Images:</label>
+    <input type="file" id="fileInput" name="files" multiple accept="image/*" onchange="validateFiles(this)">
+
+
+    <label>Choose Processing Option:</label>
+    <select name="option" required>
+        <option value="light">Light</option>
+        <option value="heavy">Heavy</option>
+        <option value="both">Both</option>
+    </select><br><br>
+
+    <button type="submit">Upload & Process</button>
+</form>
+
+<hr>
+
+<h3>Your Uploaded Images</h3>
+<ul id="image-list">
+    <!-- AJAX will populate this -->
+    <li>Loading images...</li>
+</ul>
+
+<a href="/logout">Sign Out</a>
+<script>
+    function validateFiles(input) {
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    for (let file of input.files) {
+        if (file.size > maxSize) {
+            alert(`File "${file.name}" exceeds 10MB limit.`);
+            input.value = ""; // clear selection
+            break;
+        }
+    }
+}
+async function loadImages() {
+    const container = document.getElementById("image-list");
+    container.innerHTML = "<li>Loading images...</li>";
+
+    try {
+        const res = await fetch("/api/images");
+        if (!res.ok) throw new Error("Failed to fetch images");
+
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+            container.innerHTML = "<li>No uploads yet.</li>";
+            return;
+        }
+
+        container.innerHTML = data.map(img => `
+            <li style="margin-bottom: 1rem;">
+                <p><strong>Original:</strong></p>
+                <img src="${img.original_path}" width="150" alt="Original image" onerror="this.style.display='none'"><br>
+
+                <p><strong>Status:</strong> ${img.status}</p>
+
+                ${
+                    img.status === "done" && img.processed_path ?
+                    `<p><strong>Processed:</strong></p><img src="${img.processed_path}" width="150" alt="Processed image" onerror="this.style.display='none'"><br>` :
+                    img.status === "processing" ? `<p><em>Processing in progress...</em></p>` :
+                    img.status === "failed" ? `<p style="color:red;"><strong>Processing failed.</strong></p>` :
+                    ''
+                }
+
+                <p><strong>Option:</strong> ${img.option_selected}</p>
+                <hr>
+            </li>
+        `).join("");
+    } catch (err) {
+        console.error("Failed to load images:", err);
+        container.innerHTML = "<li style='color:red;'>Failed to load images. Please try again later.</li>";
+    }
+}
+
+// Initial load + auto-refresh every 10s
+loadImages();
+setInterval(loadImages, 10000);
+</script>
+
 </body>
 </html>
