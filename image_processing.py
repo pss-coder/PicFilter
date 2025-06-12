@@ -2,6 +2,7 @@ import io
 import time
 from pathlib import Path
 from argparse import ArgumentParser
+import uuid
 
 from PIL import Image, ImageFilter
 
@@ -25,7 +26,7 @@ def main(image_data, light=False, heavy=False) -> Path:
     if heavy:
         image = heavy_processing(image)
         
-    new_path = Path(f"processed_image_{int(time.time())}.png")
+    new_path = Path(f"processed_image_{uuid.uuid4()}_{int(time.time())}.png")
     image.save(new_path)
     return new_path
 

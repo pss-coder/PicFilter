@@ -42,7 +42,6 @@ services:
       - redis
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - PYTHONPATH=/app
 
 volumes:
   temp_uploads:

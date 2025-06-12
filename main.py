@@ -38,7 +38,6 @@ TEMP_DIR.mkdir(exist_ok=True)
 @app.post("/upload")
 async def upload_images(
     request: Request,
-    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     option: str = Form(...),
 ):
