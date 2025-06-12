@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+pillow
+python-dotenv
+storage3
+supabase
+jinja2
+flower
+redis
