@@ -11,11 +11,12 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")  # Fallback to local if not set
 
 celery_app = Celery(
     "tasks",
-    broker="redis://localhost:6379/0",  # Update if your Redis is elsewhere
-    backend="redis://localhost:6379/0"
+    broker=REDIS_URL,  # Update if your Redis is elsewhere
+    backend=REDIS_URL
 )
 
 @celery_app.task
