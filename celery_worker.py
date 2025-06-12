@@ -11,7 +11,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")  # Fallback to local if not set
+REDIS_URL = os.getenv("REDIS_URL")  # Fallback to local if not set
 
 celery_app = Celery(
     "tasks",
