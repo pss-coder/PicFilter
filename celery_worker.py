@@ -10,8 +10,8 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
+REDIS_URL = os.getenv("REDIS_URL")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-REDIS_URL = os.getenv("REDIS_URL")  # Fallback to local if not set
 
 celery_app = Celery(
     "tasks",
@@ -21,7 +21,6 @@ celery_app = Celery(
 
 @celery_app.task
 def process_image_task(record_id, file_path_str, option):
-    print(f"[INFO] Processing task for record {record_id} with option '{option}'")
     file_path = Path(file_path_str)
     try:
         supabase.table("images").update({"status": "processing"}).eq("id", record_id).execute()
