@@ -1,3 +1,4 @@
+import io
 import time
 from pathlib import Path
 from argparse import ArgumentParser
@@ -17,14 +18,14 @@ def heavy_processing(image):
     return image
 
 
-def main(image_path, light=False, heavy=False) -> Path:
-    image = Image.open(image_path)
+def main(image_data, light=False, heavy=False) -> Path:
+    image = Image.open(io.BytesIO(image_data))
     if light:
         image = light_processing(image)
     if heavy:
         image = heavy_processing(image)
         
-    new_path = image_path.with_stem(image_path.stem + "_Processed")
+    new_path = Path(f"processed_image_{int(time.time())}.png")
     image.save(new_path)
     return new_path
 

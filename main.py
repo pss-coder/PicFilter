@@ -1,4 +1,5 @@
 from http.client import HTTPException
+import re
 from fastapi import FastAPI, Request, Form, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -50,8 +51,11 @@ async def upload_images(
 
     
     for file in files:
+        # Sanitize file name to remove spaces and special characters
+        sanitized_filename = re.sub(r"[^\w\-.]", "_", file.filename)
+
         # Generate unique filename
-        unique_name = f"{uuid.uuid4()}_{file.filename}"
+        unique_name = f"{uuid.uuid4()}_{sanitized_filename}"
 
         temp_file_path = TEMP_DIR / unique_name
 
@@ -81,7 +85,7 @@ async def upload_images(
         record_id = insert_result.data[0]["id"]
 
         # queue async processing using Celery
-        process_image_task.delay(record_id, str(temp_file_path), option)
+        process_image_task.delay(record_id, original_url, option)
 
 
     return RedirectResponse(url="/dashboard", status_code=302)
