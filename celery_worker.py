@@ -13,11 +13,18 @@ BUCKET_NAME = os.getenv("BUCKET_NAME")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 REDIS_URL = os.getenv("REDIS_URL")  # Fallback to local if not set
 
+CELERY_BROKER_USE_SSL = {
+        "ssl_cert_reqs": "CERT_NONE"  # or CERT_REQUIRED if you have certs
+    }
+
 celery_app = Celery(
     "tasks",
     broker=REDIS_URL,  # Update if your Redis is elsewhere
     backend=REDIS_URL
 )
+
+celery_app.conf.broker_use_ssl = CELERY_BROKER_USE_SSL
+celery_app.conf.redis_backend_use_ssl = CELERY_BROKER_USE_SSL
 
 @celery_app.task
 def process_image_task(record_id, file_path_str, option):
