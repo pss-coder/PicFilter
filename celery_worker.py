@@ -20,8 +20,8 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 celery_app = Celery(
     "tasks",
-    broker="redis://localhost:6379/0",  # Update if your Redis is elsewhere
-    backend="redis://localhost:6379/0"
+    broker="redis://redis:6379/0",  # Update if your Redis is elsewhere
+    backend="redis://redis:6379/0"
 )
 
 @celery_app.task
