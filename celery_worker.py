@@ -21,6 +21,7 @@ celery_app = Celery(
 
 @celery_app.task
 def process_image_task(record_id, file_path_str, option):
+    print(f"[INFO] Processing task for record {record_id} with option '{option}'")
     file_path = Path(file_path_str)
     try:
         supabase.table("images").update({"status": "processing"}).eq("id", record_id).execute()
