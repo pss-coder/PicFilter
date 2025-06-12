@@ -17,13 +17,16 @@ def heavy_processing(image):
     return image
 
 
-def main(image_path, light=False, heavy=False):
+def main(image_path, light=False, heavy=False) -> Path:
     image = Image.open(image_path)
     if light:
         image = light_processing(image)
     if heavy:
         image = heavy_processing(image)
-    image.save(image_path.with_stem(image_path.stem + "_Processed"))
+        
+    new_path = image_path.with_stem(image_path.stem + "_Processed")
+    image.save(new_path)
+    return new_path
 
 
 if __name__ == "__main__":
