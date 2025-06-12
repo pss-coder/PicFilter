@@ -124,6 +124,12 @@ View worker in Flower
 celery -A celery_worker.celery_app flower --port=5555
 ```
 
+Or Run the App (using Docker - Recommended, ensure to set up required .env)
+
+```bash
+docker compose up --build
+```
+
 - Visit: `http://localhost:8000` - for the web app
 - Visit: `http://localhost:5555` - for flower dashboard
 
