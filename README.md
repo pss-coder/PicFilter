@@ -14,6 +14,10 @@ A full-stack image upload and processing web app powered by **FastAPI**, **Supab
 
 🔍 **Queue Dashboard (Flower)**: [ec2-47-130-127-208.ap-southeast-1.compute.amazonaws.com:5555](http://ec2-47-130-127-208.ap-southeast-1.compute.amazonaws.com:5555)
 
+2July 25 Update: 
+- EC2 Instance termiated to save costs - Recommend to run locally and test
+
+
 ### Demo Account: 
 - Email: docker@hello.com
 - Password: 12345678
